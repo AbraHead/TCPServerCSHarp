@@ -52,7 +52,7 @@ internal class Program
                 var data = Encoding.UTF8.GetBytes(json);
                 await stream.WriteAsync(data);
             } catch (JsonException jex) {
-                await stream.WriteAsync(Encoding.UTF8.GetBytes(jex.Message));
+                await stream.WriteAsync(Encoding.UTF8.GetBytes(response.ToString()));
             } 
             
             client.Close();
