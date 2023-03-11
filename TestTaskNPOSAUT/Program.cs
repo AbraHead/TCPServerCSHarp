@@ -34,7 +34,6 @@ internal class Program
     
     public static async Task DataEditor (TcpClient client)
     {
-        Console.WriteLine("==================");
         //Получаем сетевой поток от клиента
         NetworkStream stream = client.GetStream();
         //Размер буфера
@@ -47,7 +46,6 @@ internal class Program
 
         while (true)
         {
-            Console.WriteLine("stream");
             do
             {
                 bytes = await stream.ReadAsync(responseData);
