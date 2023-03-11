@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.IO;
 
 internal class Program
 {
@@ -25,20 +26,33 @@ internal class Program
         {
             var client = await server.AcceptTcpClientAsync();
             Console.WriteLine($"Адрес подключенного клиента: {client.Client.RemoteEndPoint}");
-            //Получаем сетевой поток от клиента
-            NetworkStream stream = client.GetStream();
-            //Размер буфера
-            int bufferSize = 512;
-            //Определяем буфер
-            byte[] responseData = new byte[bufferSize];
-            //Строковая переменная для данных
-            StringBuilder response = new StringBuilder();
-            int bytes;
+            Task.Run(async ()=>await DataEditor(client));
+            //client.Close();
+            //stream.Close();
+        }
+    }
+    
+    public static async Task DataEditor (TcpClient client)
+    {
+        Console.WriteLine("==================");
+        //Получаем сетевой поток от клиента
+        NetworkStream stream = client.GetStream();
+        //Размер буфера
+        int bufferSize = 512;
+        //Определяем буфер
+        byte[] responseData = new byte[bufferSize];
+        //Строковая переменная для данных
+        StringBuilder response = new StringBuilder();
+        int bytes;
+
+        while (true)
+        {
+            Console.WriteLine("stream");
             do
             {
                 bytes = await stream.ReadAsync(responseData);
                 response.Append(Encoding.UTF8.GetString(responseData, 0, bytes));
-            } while (bytes > bufferSize);
+            } while (bytes == bufferSize);
             Console.WriteLine(response);
 
             JObject? jsonDict = null;
@@ -46,12 +60,15 @@ internal class Program
             IEnumerable<JToken?> listJsonKeys;
             try
             {
-                
+
                 if (response[0] == '[')
                 {
                     jsonArray = JArray.Parse(response.ToString());
                     listJsonKeys = jsonArray.SelectTokens("..data");
-                } else
+                } else if (response.ToString() == "END") {
+                    break;
+                }
+                else
                 {
                     jsonDict = JObject.Parse(response.ToString());
                     listJsonKeys = jsonDict.SelectTokens("..data");
@@ -59,7 +76,7 @@ internal class Program
 
                 foreach (var datapath in listJsonKeys)
                 {
-                    
+
                     if (datapath is not null)
                     {
                         datapath["processed"] = true;
@@ -69,7 +86,6 @@ internal class Program
                 var data = Encoding.UTF8.GetBytes(jsonDict is null ? jsonArray.ToString() : jsonDict.ToString());
 
                 await stream.WriteAsync(data);
-
             }
             catch (JsonReaderException jsrex)
             {
@@ -80,16 +96,19 @@ internal class Program
             {
                 Console.WriteLine(jex.Message);
                 await stream.WriteAsync(Encoding.UTF8.GetBytes(response.ToString()));
-            } catch (InvalidOperationException ioe) {
+            }
+            catch (InvalidOperationException ioe)
+            {
                 Console.WriteLine(ioe.Message);
                 await stream.WriteAsync(Encoding.UTF8.GetBytes(response.ToString()));
             }
-            
-            client.Close();
-            stream.Close();
+            response.Clear();
+            responseData = new byte[bufferSize];
         }
+        stream.Close();
+        client.Close();
+
     }
-    
 /*    public static async Task TCPSockets() 
     {
         *//*Console.WriteLine("Hello, World!");*//*
